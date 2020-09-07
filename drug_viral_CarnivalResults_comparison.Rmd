@@ -1,0 +1,154 @@
+---
+title: "Comparing CARNIVAL output: Viral VS Drug Signatures"
+author: "Alberto Valdeolivas: alberto.valdeolivas@bioquant.uni-heidelberg.de; Date:"
+date: "07/09/2020"
+output: github_document
+always_allow_html: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### License Info
+
+This program is free software: you can redistribute it and/or modify it under 
+the terms of the GNU General Public License as published by the Free Software 
+Foundation, either version 3 of the License, or (at your option) any later 
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR 
+A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+Please check http://www.gnu.org/licenses/.
+
+## Introduction
+
+The present script takes the CARNIVAL outputs generated from viral (SARS-CoV-2 
+infection) and drug signatures with anti-viral effect and compare them. 
+
+### Getting Ready 
+
+We first load the required libraries. 
+
+```{r libraries, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(gprofiler2)
+library(plotly)
+library(ggplot2)
+```
+
+## Results 
+
+To first explore the similarity between CARNIVAL results on viral signatures
+and drug signatures, we are going to compute the Jaccard index for the shared nodes and interactions in the output networks for every condition. 
+
+```{r}
+path_drug <-"CARNIVAL_results/drug_signatures/"
+path_virus <- "CARNIVAL_results/viral_signatures/"
+
+files_viral_signatures <- 
+  list.files(path = path_virus, pattern = "\\.rds$")
+files_drug_signatures <- 
+  list.files(path= path_drug, pattern = "\\.rds$")
+
+len_viral <- length(files_viral_signatures)
+len_drugs <- length(files_drug_signatures)
+len_df <- len_viral* len_drugs
+
+results_df <- 
+  data.frame(
+    viral_cell = character(length = len_df), 
+    drug = character(length = len_df), 
+    jaccard_nodes = numeric(length = len_df),
+    jaccard_interactions = numeric(length = len_df),
+    common_nodes = character(length = len_df),
+    common_interactions = character(length = len_df))
+
+a <- 1
+
+for (i in seq_along(files_drug_signatures)){
+  current_drug <- 
+    str_replace(str_replace(files_drug_signatures[i], 
+    "carnival_results_", ""), ".rds","")
+  curent_file_drug <- readRDS(paste0(path_drug,files_drug_signatures[i]))
+  current_network_drug <- curent_file_drug$weightedSIF %>% 
+    as_data_frame()
+  current_nodes_drug <- current_network_drug %>% 
+    dplyr::pull(Node1, Node2) %>% 
+    unique()
+  for (j in seq_along(files_viral_signatures)){
+    current_celldataset <- 
+      str_replace(str_replace(files_viral_signatures[j], 
+      "carnival_results_", ""), ".rds","")
+    curent_file_virus <- readRDS(paste0(path_virus,files_viral_signatures[j]))
+    current_network_virus <- curent_file_virus$weightedSIF %>% 
+      as_data_frame()
+    current_nodes_virus <- current_network_virus %>% 
+      dplyr::pull(Node1, Node2) %>% 
+      unique()
+    common_nodes <- intersect(current_nodes_drug, current_nodes_virus)
+    common_interactions <- 
+      dplyr::inner_join(current_network_drug, current_network_virus, 
+        by = c("Node1", "Sign", "Node2"))
+    jaccard_nodes <- length(common_nodes)/ 
+      (length(current_nodes_virus) + length(current_nodes_drug))
+    jaccard_interactions <- nrow(common_interactions)/
+      (nrow(current_network_drug) + nrow(current_network_virus))
+    results_df$viral_cell[a] <- current_celldataset
+    results_df$drug[a] <- current_drug
+    results_df$jaccard_nodes[a] <- jaccard_nodes
+    results_df$jaccard_interactions[a] <- jaccard_interactions
+    results_df$common_nodes[a] <- paste0(common_nodes, collapse = " ; ")
+    results_df$common_interactions[a] <- common_interactions %>% 
+      dplyr::mutate(inter = paste0(Node1, "  ", Sign, "  ", Node2)) %>% 
+      dplyr::pull(inter) %>% paste0(collapse = " ; ")
+    a <- a + 1
+  }
+}
+```
+
+### Jaccard Index at the node level
+
+Then, we plot the results at the node level
+
+```{r}
+sim_nodes <- 
+  ggplot(results_df, aes(viral_cell, drug)) +
+  geom_tile(aes(fill=jaccard_nodes), colour = "white") +
+  scale_fill_gradient(low = "#b7f7ff", high = "#0092a3") + 
+  theme_minimal() + 
+  theme(axis.ticks = element_blank(),
+        axis.text.x = element_text(size = 8,
+        angle = 90))
+```
+
+```{r,dpi=300,echo=FALSE,fig.height=10, fig.width=10}
+sim_nodes
+```
+
+### Jaccard Index at the interaction level
+
+And then at the interaction level. 
+
+```{r}
+sim_interactions <- 
+  ggplot(results_df, aes(viral_cell, drug)) +
+  geom_tile(aes(fill=jaccard_interactions), colour = "white") +
+  scale_fill_gradient(low = "#b7f7ff", high = "#0092a3") + 
+  theme_minimal() + 
+  theme(axis.ticks = element_blank(),
+        axis.text.x = element_text(size = 8,
+        angle = 90))
+```
+
+```{r,dpi=300,echo=FALSE,fig.height=10, fig.width=10}
+sim_interactions
+```
+
+## Session Info Details
+
+```{r, echo=FALSE, eval=TRUE}
+sessionInfo()
+``````
