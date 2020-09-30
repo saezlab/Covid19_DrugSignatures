@@ -191,21 +191,6 @@ Serrano, M. A., Boguna, M., & Vespignani, A. (2009). Extracting the
 multiscale backbone of complex weighted networks. Proceedings of the National 
 Academy of Sciences, 106(16), 6483-6488.
 
-#### Core Network alpha 0.05
-
-```{r core_network_005}
-gb_005 = backbone_filter(final_network_weigths, alpha = 0.05) 
-
-gb_005_df <- igraph::as_data_frame(gb_005)
-
-final_activity_mean_attr_005 <- final_activity_mean %>% 
-  dplyr::filter(Node %in% V(gb_005)$name)
-
-write_delim(gb_005_df, path = "backbone_networks/gb_005_df.txt")
-
-write_tsv(final_activity_mean_attr_005, 
-  path = "backbone_networks/gb_005_attri.txt")
-```
 
 #### Core Network alpha 0.01
 
@@ -224,6 +209,32 @@ write_tsv(final_activity_mean_attr_001,
           path = "backbone_networks/gb_001_attri.txt")
 ```
 
+<br><br>
+![](backbone_networks/gb_001_network.png)
+<br><br>
+
+#### Core Network alpha 0.05
+
+```{r core_network_005}
+gb_005 = backbone_filter(final_network_weigths, alpha = 0.05) 
+
+gb_005_df <- igraph::as_data_frame(gb_005)
+
+final_activity_mean_attr_005 <- final_activity_mean %>% 
+  dplyr::filter(Node %in% V(gb_005)$name)
+
+write_delim(gb_005_df, path = "backbone_networks/gb_005_df.txt")
+
+write_tsv(final_activity_mean_attr_005, 
+  path = "backbone_networks/gb_005_attri.txt")
+```
+
+
+<br><br>
+![](backbone_networks/gb_005_df_network.png)
+<br><br>
+
+
 #### Core Network alpha 0.1
 
 ```{r core_network_01}
@@ -239,6 +250,10 @@ write_delim(gb_01_df, path = "backbone_networks/gb_01_df.txt")
 write_tsv(final_activity_mean_attr_01, 
           path = "backbone_networks/gb_01_attri.txt")
 ```
+
+<br><br>
+![](backbone_networks/gb_01_network_screenshot.png)
+<br><br>
 
 
 ## Session Info Details
