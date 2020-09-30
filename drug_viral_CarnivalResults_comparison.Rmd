@@ -50,8 +50,13 @@ path_virus <- "CARNIVAL_results/viral_signatures/"
 
 files_viral_signatures <- 
   list.files(path = path_virus, pattern = "\\.rds$")
-files_drug_signatures <- 
-  list.files(path= path_drug, pattern = "\\.rds$")
+
+drugs_selected <- c("alprostadil", "amuvatinib","astemizole","azithromycin",
+  "ciclesonide", "clemastine","clomifene", "dapivirine", "dronedarone",
+  "fluspirilene", "lonafarnib","loperamide","niclosamide","osimertinib",
+  "papaverine", "promethazine", "regorafenib","thioridazine","toremifene")
+
+files_drug_signatures <- paste0("carnival_results_", drugs_selected, ".rds")
 
 len_viral <- length(files_viral_signatures)
 len_drugs <- length(files_drug_signatures)
@@ -74,7 +79,7 @@ for (i in seq_along(files_drug_signatures)){
     "carnival_results_", ""), ".rds","")
   curent_file_drug <- readRDS(paste0(path_drug,files_drug_signatures[i]))
   current_network_drug <- curent_file_drug$weightedSIF %>% 
-    as_data_frame()
+    as_data_frame() %>% dplyr::distinct(Node1, Sign, Node2)
   current_nodes_drug <- current_network_drug %>% 
     dplyr::pull(Node1, Node2) %>% 
     unique()
@@ -84,18 +89,20 @@ for (i in seq_along(files_drug_signatures)){
       "carnival_results_", ""), ".rds","")
     curent_file_virus <- readRDS(paste0(path_virus,files_viral_signatures[j]))
     current_network_virus <- curent_file_virus$weightedSIF %>% 
-      as_data_frame()
+      as_data_frame() %>% dplyr::distinct(Node1, Sign, Node2)
     current_nodes_virus <- current_network_virus %>% 
       dplyr::pull(Node1, Node2) %>% 
       unique()
-    common_nodes <- intersect(current_nodes_drug, current_nodes_virus)
+    common_nodes <- unique(intersect(current_nodes_drug, current_nodes_virus))
+    union_nodes <- unique(c(current_nodes_drug, current_nodes_virus))
     common_interactions <- 
-      dplyr::inner_join(current_network_drug, current_network_virus, 
+      dplyr::semi_join(current_network_drug, current_network_virus, 
         by = c("Node1", "Sign", "Node2"))
-    jaccard_nodes <- length(common_nodes)/ 
-      (length(current_nodes_virus) + length(current_nodes_drug))
-    jaccard_interactions <- nrow(common_interactions)/
-      (nrow(current_network_drug) + nrow(current_network_virus))
+    union_interactions <- 
+      rbind.data.frame(current_network_drug, current_network_virus) %>%
+      dplyr::distinct(Node1, Sign, Node2)
+    jaccard_nodes <- length(common_nodes)/ length(union_nodes)
+    jaccard_interactions <- nrow(common_interactions)/ nrow(union_interactions)
     results_df$viral_cell[a] <- current_celldataset
     results_df$drug[a] <- current_drug
     results_df$jaccard_nodes[a] <- jaccard_nodes

@@ -129,7 +129,7 @@ the target genes of those drugs.
 
 ```{r inputs, message=FALSE, warning=FALSE}
 ### Dorothea + Progeny Results 
-dorothea_results <- 
+dorothea_results <-
   read_csv(file = "CARNIVAL_input/drug_signatures_dorothea.csv") %>% 
   dplyr::rename(Tf = "X1")
 
@@ -409,6 +409,96 @@ enrichment_results_amuvatinib <-
 gostplot(enrichment_results_amuvatinib, capped = FALSE, interactive = TRUE)
 ```
 
+### Apixaban
+
+We set the gene targets of **apixaban** as perturbed. 
+
+```{r apixaban_perturbation}
+apixaban_targets_perturbation <- perturbations_nodes %>%
+  dplyr::filter(pert_iname == "apixaban") %>% 
+  dplyr::pull(target) %>% 
+  stringr::str_split(pattern = "\\|",simplify=FALSE) %>% 
+  unlist()
+
+apixaban_sign_perturbation <- perturbations_nodes %>%
+  dplyr::filter(pert_iname == "apixaban") %>% 
+  dplyr::pull(act_or_inh) %>% 
+  as.integer() %>% 
+  rep(length(apixaban_targets_perturbation)) %>% 
+  as.data.frame() %>% t()
+
+apixaban_perturbation <- apixaban_sign_perturbation
+colnames(apixaban_perturbation) <- apixaban_targets_perturbation
+```
+
+We also check if these nodes are present in our prior knowledge network as 
+source of interactions (otherwise it does not make sense to include its 
+perturbation). 
+
+```{r apixaban_check}
+colnames(apixaban_perturbation) 
+colnames(apixaban_perturbation) %in% all_source_nodes
+```
+
+We select the dorothea and progeny results containing the TF and pathway 
+activity effect of this drug. 
+
+```{r CARNIVAL_input_apixaban}
+dorothea_results_apixaban <- dorothea_results %>% 
+  dplyr::select(Tf, apixaban) %>% 
+  dplyr::filter(Tf %in% all_nodes_network) %>%
+  dplyr::top_n(25, wt = abs(apixaban)) %>%
+  dplyr::arrange(apixaban) %>%
+  tibble::column_to_rownames(var = "Tf")  %>%
+  t() %>% as.data.frame()
+
+progeny_results_apixaban <- progeny_results %>% 
+  dplyr::select(Pathway,apixaban) %>%
+  tibble::column_to_rownames(var = "Pathway")  %>%
+  t()
+```
+
+And we finally run CARNIVAL:
+
+```{r carnival_apixaban, eval=FALSE}
+carnival_results_apixaban <-runCARNIVAL(
+    solverPath="/home/alvaldeolias/Downloads/cplex",
+    netObj=carnival_pkn,
+    measObj=dorothea_results_apixaban,
+    inputObj = apixaban_perturbation,
+    # dir_name="Carnival_Results",
+    weightObj=progeny_results_apixaban,
+    # nodeID = 'gene',
+    timelimit = 36000,
+    solver = "cplex")
+saveRDS(carnival_results_apixaban, 
+    file = "CARNIVAL_results/drug_signatures/carnival_results_apixaban.rds")
+OutputCyto(carnival_results_apixaban, 
+    outputFile="CARNIVAL_results/drug_signatures/carnival_results_apixaban")
+```
+
+```{r}
+break
+```
+
+We now run the enrichment analysis: 
+
+```{r enrichment_apixaban}
+carnival_results_apixaban <- 
+    readRDS("CARNIVAL_results/drug_signatures/carnival_results_apixaban.rds")
+nodes_carnival_apixaban <- 
+  extractCARNIVALnodes(carnival_results_apixaban)
+
+enrichment_results_apixaban <- 
+  gost(nodes_carnival_apixaban$sucesses, user_threshold = 0.01, 
+  correction_method = "gSCS", custom_bg = nodes_carnival_apixaban$bg,
+  sources = c("KEGG","REAC","WP","GO:BP","MIRNA")) 
+```
+
+```{r plot_nodes_carnival_apixaban, dpi=300, out.height= 700, out.width=800, warning=FALSE, echo=TRUE}
+gostplot(enrichment_results_apixaban, capped = FALSE, interactive = TRUE)
+```
+
 ### Astemizole
 
 We set the gene targets of **astemizole** as perturbed. 
@@ -493,6 +583,181 @@ enrichment_results_astemizole <-
 
 ```{r plot_nodes_carnival_astemizole, dpi=300, out.height= 700, out.width=800, warning=FALSE, echo=TRUE}
 gostplot(enrichment_results_astemizole, capped = FALSE, interactive = TRUE)
+```
+
+### Avasimibe
+
+We set the gene targets of **avasimibe** as perturbed. 
+
+```{r avasimibe_perturbation}
+avasimibe_targets_perturbation <- perturbations_nodes %>%
+  dplyr::filter(pert_iname == "avasimibe") %>% 
+  dplyr::pull(target) %>% 
+  stringr::str_split(pattern = "\\|",simplify=FALSE) %>% 
+  unlist()
+
+avasimibe_sign_perturbation <- perturbations_nodes %>%
+  dplyr::filter(pert_iname == "avasimibe") %>% 
+  dplyr::pull(act_or_inh) %>% 
+  as.integer() %>% 
+  rep(length(avasimibe_targets_perturbation)) %>% 
+  as.data.frame() %>% t()
+
+avasimibe_perturbation <- avasimibe_sign_perturbation
+colnames(avasimibe_perturbation) <- avasimibe_targets_perturbation
+```
+
+We also check if these nodes are present in our prior knowledge network as 
+source of interactions (otherwise it does not make sense to include its 
+perturbation). 
+
+```{r avasimibe_check}
+colnames(avasimibe_perturbation) 
+colnames(avasimibe_perturbation) %in% all_source_nodes
+```
+We cannot therefore use the perturbation, since the target of the drug is not a 
+source node in our prior knowledge network. We can run inverse Carnival in this 
+case.
+
+We select the dorothea and progeny results containing the TF and pathway 
+activity effect of this drug. 
+
+```{r CARNIVAL_input_avasimibe}
+dorothea_results_avasimibe <- dorothea_results %>% 
+  dplyr::select(Tf, avasimibe) %>% 
+  dplyr::filter(Tf %in% all_nodes_network) %>%
+  dplyr::top_n(25, wt = abs(avasimibe)) %>%
+  dplyr::arrange(avasimibe) %>%
+  tibble::column_to_rownames(var = "Tf")  %>%
+  t() %>% as.data.frame()
+
+progeny_results_avasimibe <- progeny_results %>% 
+  dplyr::select(Pathway,avasimibe) %>%
+  tibble::column_to_rownames(var = "Pathway")  %>%
+  t()
+```
+
+And we finally run CARNIVAL:
+
+```{r carnival_avasimibe, eval=FALSE}
+carnival_results_avasimibe <-runCARNIVAL(
+    solverPath="/home/alvaldeolias/Downloads/cplex",
+    netObj=carnival_pkn,
+    measObj=dorothea_results_avasimibe,
+    # inputObj = avasimibe_perturbation,
+    # dir_name="Carnival_Results",
+    weightObj=progeny_results_avasimibe,
+    # nodeID = 'gene',
+    timelimit = 7200,
+    solver = "cplex")
+saveRDS(carnival_results_avasimibe, 
+    file = "CARNIVAL_results/drug_signatures/carnival_results_avasimibe.rds")
+OutputCyto(carnival_results_avasimibe, 
+    outputFile="CARNIVAL_results/drug_signatures/carnival_results_avasimibe")
+```
+
+We now run the enrichment analysis: 
+
+```{r enrichment_avasimibe, eval=FALSE}
+carnival_results_avasimibe <- 
+    readRDS("CARNIVAL_results/drug_signatures/carnival_results_avasimibe.rds")
+nodes_carnival_avasimibe <- 
+  extractCARNIVALnodes(carnival_results_avasimibe)
+
+enrichment_results_avasimibe <- 
+  gost(nodes_carnival_avasimibe$sucesses, user_threshold = 0.01, 
+  correction_method = "gSCS", custom_bg = nodes_carnival_avasimibe$bg,
+  sources = c("KEGG","REAC","WP","GO:BP","MIRNA")) 
+```
+
+```{r plot_nodes_carnival_avasimibe, dpi=300, out.height= 700, out.width=800, warning=FALSE, echo=TRUE, eval=FALSE}
+gostplot(enrichment_results_avasimibe, capped = FALSE, interactive = TRUE)
+```
+
+### Azithromycin
+
+We set the gene targets of **azithromycin** as perturbed. 
+
+```{r azithromycin_perturbation}
+azithromycin_targets_perturbation <- perturbations_nodes %>%
+  dplyr::filter(pert_iname == "azithromycin") %>% 
+  dplyr::pull(target) %>% 
+  stringr::str_split(pattern = "\\|",simplify=FALSE) %>% 
+  unlist()
+
+azithromycin_sign_perturbation <- perturbations_nodes %>%
+  dplyr::filter(pert_iname == "azithromycin") %>% 
+  dplyr::pull(act_or_inh) %>% 
+  as.integer() %>% 
+  rep(length(azithromycin_targets_perturbation)) %>% 
+  as.data.frame() %>% t()
+
+azithromycin_perturbation <- azithromycin_sign_perturbation
+colnames(azithromycin_perturbation) <- azithromycin_targets_perturbation
+```
+
+We also check if these nodes are present in our prior knowledge network as 
+source of interactions (otherwise it does not make sense to include its 
+perturbation). 
+
+```{r azithromycin_check}
+colnames(azithromycin_perturbation) 
+colnames(azithromycin_perturbation) %in% all_source_nodes
+```
+
+We select the dorothea and progeny results containing the TF and pathway 
+activity effect of this drug. 
+
+```{r CARNIVAL_input_azithromycin}
+dorothea_results_azithromycin <- dorothea_results %>% 
+  dplyr::select(Tf, azithromycin) %>% 
+  dplyr::filter(Tf %in% all_nodes_network) %>%
+  dplyr::top_n(25, wt = abs(azithromycin)) %>%
+  dplyr::arrange(azithromycin) %>%
+  tibble::column_to_rownames(var = "Tf")  %>%
+  t() %>% as.data.frame()
+
+progeny_results_azithromycin <- progeny_results %>% 
+  dplyr::select(Pathway,azithromycin) %>%
+  tibble::column_to_rownames(var = "Pathway")  %>%
+  t()
+```
+
+And we finally run CARNIVAL:
+
+```{r carnival_azithromycin, eval=FALSE}
+carnival_results_azithromycin <-runCARNIVAL(
+    solverPath="/home/alvaldeolias/Downloads/cplex",
+    netObj=carnival_pkn,
+    measObj=dorothea_results_azithromycin,
+    inputObj = azithromycin_perturbation,
+    # dir_name="Carnival_Results",
+    weightObj=progeny_results_azithromycin,
+    # nodeID = 'gene',
+    timelimit = 7200,
+    solver = "cplex")
+saveRDS(carnival_results_azithromycin, 
+    file = "CARNIVAL_results/drug_signatures/carnival_results_azithromycin.rds")
+OutputCyto(carnival_results_azithromycin, 
+    outputFile="CARNIVAL_results/drug_signatures/carnival_results_azithromycin")
+```
+
+We now run the enrichment analysis: 
+
+```{r enrichment_azithromycin}
+carnival_results_azithromycin <- 
+    readRDS("CARNIVAL_results/drug_signatures/carnival_results_azithromycin.rds")
+nodes_carnival_azithromycin <- 
+  extractCARNIVALnodes(carnival_results_azithromycin)
+
+enrichment_results_azithromycin <- 
+  gost(nodes_carnival_azithromycin$sucesses, user_threshold = 0.01, 
+  correction_method = "gSCS", custom_bg = nodes_carnival_azithromycin$bg,
+  sources = c("KEGG","REAC","WP","GO:BP","MIRNA")) 
+```
+
+```{r plot_nodes_carnival_azithromycin, dpi=300, out.height= 700, out.width=800, warning=FALSE, echo=TRUE}
+gostplot(enrichment_results_azithromycin, capped = FALSE, interactive = TRUE)
 ```
 
 ### Ciclesonide
@@ -666,6 +931,178 @@ enrichment_results_clemastine <-
 
 ```{r plot_nodes_carnival_clemastine, dpi=300, out.height= 700, out.width=800, warning=FALSE, echo=TRUE}
 gostplot(enrichment_results_clemastine, capped = FALSE, interactive = TRUE)
+```
+
+### Clomifene
+
+We set the gene targets of **clomifene** as perturbed. 
+
+```{r clomifene_perturbation}
+clomifene_targets_perturbation <- perturbations_nodes %>%
+  dplyr::filter(pert_iname == "clomifene") %>% 
+  dplyr::pull(target) %>% 
+  stringr::str_split(pattern = "\\|",simplify=FALSE) %>% 
+  unlist()
+
+clomifene_sign_perturbation <- perturbations_nodes %>%
+  dplyr::filter(pert_iname == "clomifene") %>% 
+  dplyr::pull(act_or_inh) %>% 
+  as.integer() %>% 
+  rep(length(clomifene_targets_perturbation)) %>% 
+  as.data.frame() %>% t()
+
+clomifene_perturbation <- clomifene_sign_perturbation
+colnames(clomifene_perturbation) <- clomifene_targets_perturbation
+```
+
+We also check if these nodes are present in our prior knowledge network as 
+source of interactions (otherwise it does not make sense to include its 
+perturbation). 
+
+```{r clomifene_check}
+colnames(clomifene_perturbation) 
+colnames(clomifene_perturbation) %in% all_source_nodes
+```
+
+We select the dorothea and progeny results containing the TF and pathway 
+activity effect of this drug. 
+
+```{r CARNIVAL_input_clomifene}
+dorothea_results_clomifene <- dorothea_results %>% 
+  dplyr::select(Tf, clomifene) %>% 
+  dplyr::filter(Tf %in% all_nodes_network) %>%
+  dplyr::top_n(25, wt = abs(clomifene)) %>%
+  dplyr::arrange(clomifene) %>%
+  tibble::column_to_rownames(var = "Tf")  %>%
+  t() %>% as.data.frame()
+
+progeny_results_clomifene <- progeny_results %>% 
+  dplyr::select(Pathway,clomifene) %>%
+  tibble::column_to_rownames(var = "Pathway")  %>%
+  t()
+```
+
+And we finally run CARNIVAL:
+
+```{r carnival_clomifene, eval=FALSE}
+carnival_results_clomifene <-runCARNIVAL(
+    solverPath="/home/alvaldeolias/Downloads/cplex",
+    netObj=carnival_pkn,
+    measObj=dorothea_results_clomifene,
+    inputObj = clomifene_perturbation,
+    # dir_name="Carnival_Results",
+    weightObj=progeny_results_clomifene,
+    # nodeID = 'gene',
+    timelimit = 3600,
+    solver = "cplex")
+saveRDS(carnival_results_clomifene, 
+    file = "CARNIVAL_results/drug_signatures/carnival_results_clomifene.rds")
+OutputCyto(carnival_results_clomifene, 
+    outputFile="CARNIVAL_results/drug_signatures/carnival_results_clomifene")
+```
+
+We now run the enrichment analysis: 
+
+```{r enrichment_clomifene}
+carnival_results_clomifene <- 
+    readRDS("CARNIVAL_results/drug_signatures/carnival_results_clomifene.rds")
+nodes_carnival_clomifene <- 
+  extractCARNIVALnodes(carnival_results_clomifene)
+
+enrichment_results_clomifene <- 
+  gost(nodes_carnival_clomifene$sucesses, user_threshold = 0.01, 
+  correction_method = "gSCS", custom_bg = nodes_carnival_clomifene$bg,
+  sources = c("KEGG","REAC","WP","GO:BP","MIRNA")) 
+```
+
+```{r plot_nodes_carnival_clomifene, dpi=300, out.height= 700, out.width=800, warning=FALSE, echo=TRUE}
+gostplot(enrichment_results_clomifene, capped = FALSE, interactive = TRUE)
+```
+
+### Dapivirine
+
+We set the gene targets of **dapivirine** as perturbed. 
+
+```{r dapivirine_perturbation}
+dapivirine_targets_perturbation <- perturbations_nodes %>%
+  dplyr::filter(pert_iname == "dapivirine") %>% 
+  dplyr::pull(target) %>% 
+  stringr::str_split(pattern = "\\|",simplify=FALSE) %>% 
+  unlist()
+
+dapivirine_sign_perturbation <- perturbations_nodes %>%
+  dplyr::filter(pert_iname == "dapivirine") %>% 
+  dplyr::pull(act_or_inh) %>% 
+  as.integer() %>% 
+  rep(length(dapivirine_targets_perturbation)) %>% 
+  as.data.frame() %>% t()
+
+dapivirine_perturbation <- dapivirine_sign_perturbation
+colnames(dapivirine_perturbation) <- dapivirine_targets_perturbation
+```
+
+We also check if these nodes are present in our prior knowledge network as 
+source of interactions (otherwise it does not make sense to include its 
+perturbation). 
+
+```{r dapivirine_check}
+colnames(dapivirine_perturbation) 
+colnames(dapivirine_perturbation) %in% all_source_nodes
+```
+
+We select the dorothea and progeny results containing the TF and pathway 
+activity effect of this drug. 
+
+```{r CARNIVAL_input_dapivirine}
+dorothea_results_dapivirine <- dorothea_results %>% 
+  dplyr::select(Tf, dapivirine) %>% 
+  dplyr::filter(Tf %in% all_nodes_network) %>%
+  dplyr::top_n(25, wt = abs(dapivirine)) %>%
+  dplyr::arrange(dapivirine) %>%
+  tibble::column_to_rownames(var = "Tf")  %>%
+  t() %>% as.data.frame()
+
+progeny_results_dapivirine <- progeny_results %>% 
+  dplyr::select(Pathway,dapivirine) %>%
+  tibble::column_to_rownames(var = "Pathway")  %>%
+  t()
+```
+
+And we finally run CARNIVAL:
+
+```{r carnival_dapivirine, eval=FALSE}
+carnival_results_dapivirine <-runCARNIVAL(
+    solverPath="/home/alvaldeolias/Downloads/cplex",
+    netObj=carnival_pkn,
+    measObj=dorothea_results_dapivirine,
+    inputObj = dapivirine_perturbation,
+    # dir_name="Carnival_Results",
+    weightObj=progeny_results_dapivirine,
+    # nodeID = 'gene',
+    timelimit = 14400,
+    solver = "cplex")
+saveRDS(carnival_results_dapivirine, 
+    file = "CARNIVAL_results/drug_signatures/carnival_results_dapivirine.rds")
+OutputCyto(carnival_results_dapivirine, 
+    outputFile="CARNIVAL_results/drug_signatures/carnival_results_dapivirine")
+```
+
+We now run the enrichment analysis: 
+
+```{r enrichment_dapivirine}
+carnival_results_dapivirine <- 
+    readRDS("CARNIVAL_results/drug_signatures/carnival_results_dapivirine.rds")
+nodes_carnival_dapivirine <- 
+  extractCARNIVALnodes(carnival_results_dapivirine)
+
+enrichment_results_dapivirine <- 
+  gost(nodes_carnival_dapivirine$sucesses, user_threshold = 0.01, 
+  correction_method = "gSCS", custom_bg = nodes_carnival_dapivirine$bg,
+  sources = c("KEGG","REAC","WP","GO:BP","MIRNA")) 
+```
+
+```{r plot_nodes_carnival_dapivirine, dpi=300, out.height= 700, out.width=800, warning=FALSE, echo=TRUE}
+gostplot(enrichment_results_dapivirine, capped = FALSE, interactive = TRUE)
 ```
 
 
@@ -933,6 +1370,91 @@ enrichment_results_fluspirilene <-
 gostplot(enrichment_results_fluspirilene, capped = FALSE, interactive = TRUE)
 ```
 
+### Hexachlorophene
+
+We set the gene targets of **hexachlorophene** as perturbed. 
+
+```{r hexachlorophene_perturbation}
+hexachlorophene_targets_perturbation <- perturbations_nodes %>%
+  dplyr::filter(pert_iname == "hexachlorophene") %>% 
+  dplyr::pull(target) %>% 
+  stringr::str_split(pattern = "\\|",simplify=FALSE) %>% 
+  unlist()
+
+hexachlorophene_sign_perturbation <- perturbations_nodes %>%
+  dplyr::filter(pert_iname == "hexachlorophene") %>% 
+  dplyr::pull(act_or_inh) %>% 
+  as.integer() %>% 
+  rep(length(hexachlorophene_targets_perturbation)) %>% 
+  as.data.frame() %>% t()
+
+hexachlorophene_perturbation <- hexachlorophene_sign_perturbation
+colnames(hexachlorophene_perturbation) <- hexachlorophene_targets_perturbation
+```
+
+We also check if these nodes are present in our prior knowledge network as 
+source of interactions (otherwise it does not make sense to include its 
+perturbation). 
+
+```{r hexachlorophene_check}
+colnames(hexachlorophene_perturbation) 
+colnames(hexachlorophene_perturbation) %in% all_source_nodes
+```
+
+We select the dorothea and progeny results containing the TF and pathway 
+activity effect of this drug. 
+
+```{r CARNIVAL_input_hexachlorophene}
+dorothea_results_hexachlorophene <- dorothea_results %>% 
+  dplyr::select(Tf, hexachlorophene) %>% 
+  dplyr::filter(Tf %in% all_nodes_network) %>%
+  dplyr::top_n(25, wt = abs(hexachlorophene)) %>%
+  dplyr::arrange(hexachlorophene) %>%
+  tibble::column_to_rownames(var = "Tf")  %>%
+  t() %>% as.data.frame()
+
+progeny_results_hexachlorophene <- progeny_results %>% 
+  dplyr::select(Pathway,hexachlorophene) %>%
+  tibble::column_to_rownames(var = "Pathway")  %>%
+  t()
+```
+
+And we finally run CARNIVAL:
+
+```{r carnival_hexachlorophene, eval=FALSE}
+carnival_results_hexachlorophene <-runCARNIVAL(
+    solverPath="/home/alvaldeolias/Downloads/cplex",
+    netObj=carnival_pkn,
+    measObj=dorothea_results_hexachlorophene,
+    inputObj = hexachlorophene_perturbation,
+    # dir_name="Carnival_Results",
+    weightObj=progeny_results_hexachlorophene,
+    # nodeID = 'gene',
+    timelimit = 21600,
+    solver = "cplex")
+saveRDS(carnival_results_hexachlorophene, 
+    file = "CARNIVAL_results/drug_signatures/carnival_results_hexachlorophene.rds")
+OutputCyto(carnival_results_hexachlorophene, 
+    outputFile="CARNIVAL_results/drug_signatures/carnival_results_hexachlorophene")
+```
+
+We now run the enrichment analysis: 
+
+```{r enrichment_hexachlorophene, eval=FALSE}
+carnival_results_hexachlorophene <- 
+    readRDS("CARNIVAL_results/drug_signatures/carnival_results_hexachlorophene.rds")
+nodes_carnival_hexachlorophene <- 
+  extractCARNIVALnodes(carnival_results_hexachlorophene)
+
+enrichment_results_hexachlorophene <- 
+  gost(nodes_carnival_hexachlorophene$sucesses, user_threshold = 0.01, 
+  correction_method = "gSCS", custom_bg = nodes_carnival_hexachlorophene$bg,
+  sources = c("KEGG","REAC","WP","GO:BP","MIRNA")) 
+```
+
+```{r plot_nodes_carnival_hexachlorophene, dpi=300, out.height= 700, out.width=800, warning=FALSE, echo=TRUE, eval=FALSE}
+gostplot(enrichment_results_hexachlorophene, capped = FALSE, interactive = TRUE)
+```
 
 ### Homoharringtonine
 
@@ -1023,6 +1545,90 @@ enrichment_results_homoharringtonine <-
 gostplot(enrichment_results_homoharringtonine, capped = FALSE, interactive = TRUE)
 ```
 
+### Ivacaftor
+
+We set the gene targets of **ivacaftor** as perturbed. 
+
+```{r ivacaftor_perturbation}
+ivacaftor_targets_perturbation <- perturbations_nodes %>%
+  dplyr::filter(pert_iname == "ivacaftor") %>% 
+  dplyr::pull(target) %>% 
+  stringr::str_split(pattern = "\\|",simplify=FALSE) %>% 
+  unlist()
+
+ivacaftor_sign_perturbation <- perturbations_nodes %>%
+  dplyr::filter(pert_iname == "ivacaftor") %>% 
+  dplyr::pull(act_or_inh) %>% 
+  as.integer() %>% 
+  rep(length(ivacaftor_targets_perturbation)) %>% 
+  as.data.frame() %>% t()
+
+ivacaftor_perturbation <- ivacaftor_sign_perturbation
+colnames(ivacaftor_perturbation) <- ivacaftor_targets_perturbation
+```
+
+We also check if these nodes are present in our prior knowledge network as 
+source of interactions (otherwise it does not make sense to include its 
+perturbation). 
+
+```{r ivacaftor_check}
+colnames(ivacaftor_perturbation) 
+colnames(ivacaftor_perturbation) %in% all_source_nodes
+```
+We select the dorothea and progeny results containing the TF and pathway 
+activity effect of this drug. 
+
+```{r CARNIVAL_input_ivacaftor}
+dorothea_results_ivacaftor <- dorothea_results %>% 
+  dplyr::select(Tf, ivacaftor) %>% 
+  dplyr::filter(Tf %in% all_nodes_network) %>%
+  dplyr::top_n(25, wt = abs(ivacaftor)) %>%
+  dplyr::arrange(ivacaftor) %>%
+  tibble::column_to_rownames(var = "Tf")  %>%
+  t() %>% as.data.frame()
+
+progeny_results_ivacaftor <- progeny_results %>% 
+  dplyr::select(Pathway,ivacaftor) %>%
+  tibble::column_to_rownames(var = "Pathway")  %>%
+  t()
+```
+
+And we finally run CARNIVAL:
+
+```{r carnival_ivacaftor, eval=FALSE}
+carnival_results_ivacaftor <-runCARNIVAL(
+    solverPath="/home/alvaldeolias/Downloads/cplex",
+    netObj=carnival_pkn,
+    measObj=dorothea_results_ivacaftor,
+    inputObj = ivacaftor_perturbation,
+    # dir_name="Carnival_Results",
+    weightObj=progeny_results_ivacaftor,
+    # nodeID = 'gene',
+    timelimit = 21600,
+    solver = "cplex")
+saveRDS(carnival_results_ivacaftor, 
+    file = "CARNIVAL_results/drug_signatures/carnival_results_ivacaftor.rds")
+OutputCyto(carnival_results_ivacaftor, 
+    outputFile="CARNIVAL_results/drug_signatures/carnival_results_ivacaftor")
+```
+
+We now run the enrichment analysis: 
+
+```{r enrichment_ivacaftor, eval=FALSE}
+carnival_results_ivacaftor <- 
+    readRDS("CARNIVAL_results/drug_signatures/carnival_results_ivacaftor.rds")
+nodes_carnival_ivacaftor <- 
+  extractCARNIVALnodes(carnival_results_ivacaftor)
+
+enrichment_results_ivacaftor <- 
+  gost(nodes_carnival_ivacaftor$sucesses, user_threshold = 0.01, 
+  correction_method = "gSCS", custom_bg = nodes_carnival_ivacaftor$bg,
+  sources = c("KEGG","REAC","WP","GO:BP","MIRNA")) 
+```
+
+```{r plot_nodes_carnival_ivacaftor, dpi=300, out.height= 700, out.width=800, warning=FALSE, echo=TRUE, eval=FALSE}
+gostplot(enrichment_results_ivacaftor, capped = FALSE, interactive = TRUE)
+```
 
 ### Ketoconazole
 
@@ -1900,6 +2506,91 @@ enrichment_results_regorafenib <-
 gostplot(enrichment_results_regorafenib, capped = FALSE, interactive = TRUE)
 ```
 
+### Thioguanine
+
+We set the gene targets of **thioguanine** as perturbed. 
+
+```{r thioguanine_perturbation}
+thioguanine_targets_perturbation <- perturbations_nodes %>%
+  dplyr::filter(pert_iname == "thioguanine") %>% 
+  dplyr::pull(target) %>% 
+  stringr::str_split(pattern = "\\|",simplify=FALSE) %>% 
+  unlist()
+
+thioguanine_sign_perturbation <- perturbations_nodes %>%
+  dplyr::filter(pert_iname == "thioguanine") %>% 
+  dplyr::pull(act_or_inh) %>% 
+  as.integer() %>% 
+  rep(length(thioguanine_targets_perturbation)) %>% 
+  as.data.frame() %>% t()
+
+thioguanine_perturbation <- thioguanine_sign_perturbation
+colnames(thioguanine_perturbation) <- thioguanine_targets_perturbation
+```
+
+We also check if these nodes are present in our prior knowledge network as 
+source of interactions (otherwise it does not make sense to include its 
+perturbation). 
+
+```{r thioguanine_check}
+colnames(thioguanine_perturbation) 
+colnames(thioguanine_perturbation) %in% all_source_nodes
+```
+
+We select the dorothea and progeny results containing the TF and pathway 
+activity effect of this drug. 
+
+```{r CARNIVAL_input_thioguanine}
+dorothea_results_thioguanine <- dorothea_results %>% 
+  dplyr::select(Tf, thioguanine) %>% 
+  dplyr::filter(Tf %in% all_nodes_network) %>%
+  dplyr::top_n(25, wt = abs(thioguanine)) %>%
+  dplyr::arrange(thioguanine) %>%
+  tibble::column_to_rownames(var = "Tf")  %>%
+  t() %>% as.data.frame()
+
+progeny_results_thioguanine <- progeny_results %>% 
+  dplyr::select(Pathway,thioguanine) %>%
+  tibble::column_to_rownames(var = "Pathway")  %>%
+  t()
+```
+
+And we finally run CARNIVAL:
+
+```{r carnival_thioguanine, eval=FALSE}
+carnival_results_thioguanine <-runCARNIVAL(
+    solverPath="/home/alvaldeolias/Downloads/cplex",
+    netObj=carnival_pkn,
+    measObj=dorothea_results_thioguanine,
+    inputObj = thioguanine_perturbation,
+    # dir_name="Carnival_Results",
+    weightObj=progeny_results_thioguanine,
+    # nodeID = 'gene',
+    timelimit = 7200,
+    solver = "cplex")
+saveRDS(carnival_results_thioguanine, 
+    file = "CARNIVAL_results/drug_signatures/carnival_results_thioguanine.rds")
+OutputCyto(carnival_results_thioguanine, 
+    outputFile="CARNIVAL_results/drug_signatures/carnival_results_thioguanine")
+```
+
+And we run now the enrichment analysis:
+
+```{r enrichment_thioguanine, eval=FALSE}
+carnival_results_thioguanine <- 
+    readRDS("CARNIVAL_results/drug_signatures/carnival_results_thioguanine.rds")
+nodes_carnival_thioguanine <- 
+  extractCARNIVALnodes(carnival_results_thioguanine)
+
+enrichment_results_thioguanine <- 
+  gost(nodes_carnival_thioguanine$sucesses, user_threshold = 0.01, 
+  correction_method = "gSCS", custom_bg = nodes_carnival_thioguanine$bg,
+  sources = c("KEGG","REAC","WP","GO:BP","MIRNA")) 
+```
+
+```{r plot_nodes_carnival_thioguanine, dpi=300, out.height= 700, out.width=800, warning=FALSE, echo=TRUE, eval=FALSE}
+gostplot(enrichment_results_thioguanine, capped = FALSE, interactive = TRUE)
+```
 
 ### Thioridazine
 
@@ -1987,6 +2678,93 @@ enrichment_results_thioridazine <-
 gostplot(enrichment_results_thioridazine, capped = FALSE, interactive = TRUE)
 ```
 
+### Toremifene
+
+We set the gene targets of **toremifene** as perturbed. 
+
+```{r toremifene_perturbation}
+toremifene_targets_perturbation <- perturbations_nodes %>%
+  dplyr::filter(pert_iname == "toremifene") %>% 
+  dplyr::pull(target) %>% 
+  stringr::str_split(pattern = "\\|",simplify=FALSE) %>% 
+  unlist()
+
+toremifene_sign_perturbation <- perturbations_nodes %>%
+  dplyr::filter(pert_iname == "toremifene") %>% 
+  dplyr::pull(act_or_inh) %>% 
+  as.integer() %>% 
+  rep(length(toremifene_targets_perturbation)) %>% 
+  as.data.frame() %>% t()
+
+toremifene_perturbation <- toremifene_sign_perturbation
+colnames(toremifene_perturbation) <- toremifene_targets_perturbation
+```
+
+We also check if these nodes are present in our prior knowledge network as 
+source of interactions (otherwise it does not make sense to include its 
+perturbation). 
+
+```{r toremifene_check}
+colnames(toremifene_perturbation) 
+colnames(toremifene_perturbation) %in% all_source_nodes
+```
+
+We select the dorothea and progeny results containing the TF and pathway 
+activity effect of this drug. 
+
+```{r CARNIVAL_input_toremifene}
+dorothea_results_toremifene <- dorothea_results %>% 
+  dplyr::select(Tf, toremifene) %>% 
+  dplyr::filter(Tf %in% all_nodes_network) %>%
+  dplyr::top_n(25, wt = abs(toremifene)) %>%
+  dplyr::arrange(toremifene) %>%
+  tibble::column_to_rownames(var = "Tf")  %>%
+  t() %>% as.data.frame()
+
+progeny_results_toremifene <- progeny_results %>% 
+  dplyr::select(Pathway,toremifene) %>%
+  tibble::column_to_rownames(var = "Pathway")  %>%
+  t()
+```
+
+And we finally run CARNIVAL:
+
+```{r carnival_toremifene, eval=FALSE}
+carnival_results_toremifene <-runCARNIVAL(
+    solverPath="/home/alvaldeolias/Downloads/cplex",
+    netObj=carnival_pkn,
+    measObj=dorothea_results_toremifene,
+    inputObj = toremifene_perturbation,
+    # dir_name="Carnival_Results",
+    weightObj=progeny_results_toremifene,
+    # nodeID = 'gene',
+    timelimit = 3600,
+    solver = "cplex")
+saveRDS(carnival_results_toremifene, 
+    file = "CARNIVAL_results/drug_signatures/carnival_results_toremifene.rds")
+OutputCyto(carnival_results_toremifene, 
+    outputFile="CARNIVAL_results/drug_signatures/carnival_results_toremifene")
+```
+
+And we run now the enrichment analysis:
+
+```{r enrichment_toremifene}
+carnival_results_toremifene <- 
+    readRDS("CARNIVAL_results/drug_signatures/carnival_results_toremifene.rds")
+nodes_carnival_toremifene <- 
+  extractCARNIVALnodes(carnival_results_toremifene)
+
+enrichment_results_toremifene <- 
+  gost(nodes_carnival_toremifene$sucesses, user_threshold = 0.01, 
+  correction_method = "gSCS", custom_bg = nodes_carnival_toremifene$bg,
+  sources = c("KEGG","REAC","WP","GO:BP","MIRNA")) 
+```
+
+```{r plot_nodes_carnival_toremifene, dpi=300, out.height= 700, out.width=800, warning=FALSE, echo=TRUE}
+gostplot(enrichment_results_toremifene, capped = FALSE, interactive = TRUE)
+```
+
+
 
 ### ZK-93423
 
@@ -2044,7 +2822,7 @@ progeny_results_ZK93423 <- progeny_results %>%
 
 And we finally run CARNIVAL:
 
-```{r carnival_ZK-93423, eval=TRUE}
+```{r carnival_ZK-93423, eval=FALSE}
 carnival_results_ZK93423 <-runCARNIVAL(
     solverPath="/home/alvaldeolias/Downloads/cplex",
     netObj=carnival_pkn,
@@ -2082,6 +2860,6 @@ gostplot(enrichment_results_ZK93423, capped = FALSE, interactive = TRUE)
 
 ## Session Info Details
 
-```{r, echo=FALSE, eval=TRUE}
+```{r, echo=FALSE}
 sessionInfo()
 ``````
