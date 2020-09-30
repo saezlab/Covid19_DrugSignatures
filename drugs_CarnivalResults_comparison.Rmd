@@ -252,7 +252,7 @@ write_tsv(final_activity_mean_attr_01,
 ```
 
 <br><br>
-![](backbone_networks/gb_01_network_screenshot.png)
+![](backbone_networks/gb_01_network_screenshot_2.png)
 <br><br>
 
 
